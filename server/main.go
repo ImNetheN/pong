@@ -6,6 +6,13 @@ import (
 	"net"
 )
 
+type Ball struct {
+	posX float32
+	posY float32
+	velX float32
+	velY float32
+}
+
 type Manager struct {
 	Conn   *net.UDPConn
 	P1Addr *net.UDPAddr
@@ -16,12 +23,12 @@ type Manager struct {
 }
 
 func (m *Manager) SendReady() {
-	_, err := m.Conn.WriteToUDP([]byte("ready"), m.P1Addr)
+	_, err := m.Conn.WriteToUDP(SerializePacket(NewReadyPacket()), m.P1Addr)
 	if err != nil {
 		panic(err)
 	}
 
-	_, err = m.Conn.WriteToUDP([]byte("ready"), m.P2Addr)
+	_, err = m.Conn.WriteToUDP(SerializePacket(NewReadyPacket()), m.P2Addr)
 	if err != nil {
 		panic(err)
 	}
@@ -29,7 +36,7 @@ func (m *Manager) SendReady() {
 
 func (m *Manager) Receive() {
 	for {
-		buf := make([]byte, 32)
+		buf := make([]byte, 256)
 		_, addr, err := m.Conn.ReadFromUDP(buf)
 		if err != nil {
 			panic(err)
@@ -87,7 +94,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	_, err = conn.WriteToUDP([]byte("1"), p1Addr)
+	// p := (NewIntPacket(1))
+	// fmt.Println(string(p.Data))
+	// pp := SerializePacket(p)
+	// fmt.Println((pp))
+	_, err = conn.WriteToUDP(SerializePacket(NewIntPacket(1)), p1Addr)
 	if err != nil {
 		panic(err)
 	}
@@ -106,7 +117,7 @@ func main() {
 		}
 	}
 
-	_, err = conn.WriteToUDP([]byte("2"), p2Addr)
+	_, err = conn.WriteToUDP(SerializePacket(NewIntPacket(2)), p2Addr)
 	if err != nil {
 		panic(err)
 	}

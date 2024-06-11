@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
@@ -80,29 +81,33 @@ func (g *Game) SendPaddleInfo() {
 	}
 
 	for {
-		buf := SerializeFloat(paddle.posY)
-		_, err := g.ServerConn.Write(buf)
+		paddlePosPacket := NewPaddlePosPacket(g.IsRight, paddle.posY)
+		_, err := g.ServerConn.Write(SerializePacket(paddlePosPacket))
+
 		if err != nil {
 			panic(err)
 		}
-		// fmt.Println("sent")
 		time.Sleep(time.Millisecond * 66)
 	}
 }
 
 func (g *Game) ReceivePaddleInfo() {
 	for {
-		// fmt.Println("tryig")
-		buf := make([]byte, 32)
+		buf := make([]byte, 256)
 
 		_, err := g.ServerConn.Read(buf)
 		if err != nil {
 			panic(err)
 		}
-		pos := DeserializeFloat(buf)
-		// fmt.Println("received")
-		g.OtherPaddlePos <- pos
-		// fmt.Println("received2")
+
+		paddlePosPacket := DeserealizePacket(buf)
+		var paddleData PaddlePosData
+		err = json.Unmarshal(paddlePosPacket.Data, &paddleData)
+		if err != nil {
+			panic(err)
+		}
+
+		g.OtherPaddlePos <- paddleData.Pos
 	}
 }
 
