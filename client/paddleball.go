@@ -18,48 +18,48 @@ const (
 )
 
 type Paddle struct {
-	posY    float32
-	isRight bool
+	PosY    float32
+	IsRight bool
 }
 
 func InitLeftPaddle() Paddle {
 	return Paddle{
-		posY:    400,
-		isRight: false,
+		PosY:    400,
+		IsRight: false,
 	}
 }
 
 func InitRightPaddle() Paddle {
 	return Paddle{
-		posY:    400,
-		isRight: true,
+		PosY:    400,
+		IsRight: true,
 	}
 }
 
 func (p *Paddle) Draw(dst *ebiten.Image) {
-	if !p.isRight {
-		vector.DrawFilledRect(dst, LEFT_PADDLE_X, p.posY, PADDLE_WIDTH, PADDLE_HEIGHT, color.White, false)
+	if !p.IsRight {
+		vector.DrawFilledRect(dst, LEFT_PADDLE_X, p.PosY, PADDLE_WIDTH, PADDLE_HEIGHT, color.White, false)
 	} else {
-		vector.DrawFilledRect(dst, RIGHT_PADDLE_X, p.posY, PADDLE_WIDTH, PADDLE_HEIGHT, color.White, false)
+		vector.DrawFilledRect(dst, RIGHT_PADDLE_X, p.PosY, PADDLE_WIDTH, PADDLE_HEIGHT, color.White, false)
 	}
 }
 
 type Ball struct {
-	posX float32
-	posY float32
-	velX float32
-	velY float32
+	PosX float32
+	PosY float32
+	VelX float32
+	VelY float32
 }
 
 func InitBall() Ball {
 	return Ball{
-		posX: 400,
-		posY: 400,
-		velX: 1,
-		velY: 1,
+		PosX: 400,
+		PosY: 400,
+		VelX: 1,
+		VelY: 1,
 	}
 }
 
 func (b *Ball) Draw(dst *ebiten.Image) {
-	vector.DrawFilledRect(dst, b.posX, b.posY, BALL_SIZE, BALL_SIZE, color.White, false)
+	vector.DrawFilledRect(dst, b.PosX, b.PosY, BALL_SIZE, BALL_SIZE, color.White, false)
 }

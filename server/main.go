@@ -1,16 +1,39 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
+	"time"
+)
+
+const (
+	PADDLE_WIDTH   = 10
+	PADDLE_HEIGHT  = 100
+	LEFT_PADDLE_X  = 10
+	RIGHT_PADDLE_X = 780
+	PADDLE_SPEED   = 5
+
+	BALL_SIZE = 10
 )
 
 type Ball struct {
-	posX float32
-	posY float32
-	velX float32
-	velY float32
+	PosX float32
+	PosY float32
+	VelX float32
+	VelY float32
+}
+
+type Paddle struct {
+	IsRight bool
+	PosY    float32
+}
+
+type State struct {
+	LeftPaddle  Paddle
+	RightPaddle Paddle
+	Ball        Ball
 }
 
 type Manager struct {
@@ -18,8 +41,8 @@ type Manager struct {
 	P1Addr *net.UDPAddr
 	P2Addr *net.UDPAddr
 
-	P1Chan chan []byte
-	P2Chan chan []byte
+	State      State
+	LastUpdate time.Time
 }
 
 func (m *Manager) SendReady() {
@@ -34,6 +57,19 @@ func (m *Manager) SendReady() {
 	}
 }
 
+// TODO: mutex
+func (m *Manager) UpdateBall() {
+	updateTicker := time.NewTicker(time.Millisecond * 17)
+
+	for {
+		select {
+		case <-updateTicker.C:
+			m.State.Ball.PosX += m.State.Ball.VelX
+			m.State.Ball.PosY += m.State.Ball.VelY
+		}
+	}
+}
+
 func (m *Manager) Receive() {
 	for {
 		buf := make([]byte, 256)
@@ -42,34 +78,42 @@ func (m *Manager) Receive() {
 			panic(err)
 		}
 
+		paddlePacket := DeserealizePacket(buf)
+
+		var paddle Paddle
+		err = json.Unmarshal(paddlePacket.Data, &paddle)
+		if err != nil {
+			panic(err)
+		}
+
+		// TODO: put player data in the packet instead of cheaking ip
+		// TODO: mutex
 		if addr.IP.Equal(m.P1Addr.IP) && addr.Port == m.P1Addr.Port {
-			// fmt.Println("received from 1:", string(buf))
-			m.P2Chan <- buf
+			m.State.LeftPaddle = paddle
 		} else if addr.IP.Equal(m.P2Addr.IP) && addr.Port == m.P2Addr.Port {
-			// fmt.Println("received from 2:", string(buf))
-			m.P1Chan <- buf
+			m.State.RightPaddle = paddle
 		} else {
 			panic(fmt.Sprint("bad client address", addr))
 		}
+
 	}
 }
 
 func (m *Manager) Send() {
 	for {
-		select {
-		case p := <-m.P1Chan:
-			_, err := m.Conn.WriteToUDP(p, m.P1Addr)
-			if err != nil {
-				panic(err)
-			}
-			// fmt.Println("sent to 1:", string(p))
-		case p := <-m.P2Chan:
-			_, err := m.Conn.WriteToUDP(p, m.P2Addr)
-			if err != nil {
-				panic(err)
-			}
-			// fmt.Println("sent to 2:", string(p))
+		statePacketSerialized := SerializePacket(NewStatePacket(m.State))
+
+		_, err := m.Conn.WriteToUDP(statePacketSerialized, m.P1Addr)
+		if err != nil {
+			panic(err)
 		}
+
+		_, err = m.Conn.WriteToUDP(statePacketSerialized, m.P2Addr)
+		if err != nil {
+			panic(err)
+		}
+
+		time.Sleep(time.Millisecond * 33)
 	}
 }
 
@@ -129,12 +173,21 @@ func main() {
 		P1Addr: p1Addr,
 		P2Addr: p2Addr,
 
-		P1Chan: make(chan []byte),
-		P2Chan: make(chan []byte),
+		State: State{
+			Ball: Ball{
+				PosX: 400,
+				PosY: 400,
+				VelX: 1,
+				VelY: 1,
+			},
+		},
 	}
 
 	manager.SendReady()
 
+	manager.LastUpdate = time.Now()
+
 	go manager.Receive()
+	go manager.UpdateBall()
 	manager.Send()
 }

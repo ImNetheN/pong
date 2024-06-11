@@ -16,6 +16,7 @@ const (
 	PacketPaddleMoved
 	PacketPaddlePos
 	PacketBall
+	PacketGameState
 )
 
 type Packet struct {
@@ -96,15 +97,15 @@ func NewPaddleMovedPacket(isRight bool, moveDist float32) Packet {
 //     return data
 // }
 
-type PaddlePosData struct {
-	IsRight bool
-	Pos     float32
-}
+// type PaddlePosData struct {
+// 	IsRight bool
+// 	Pos     float32
+// }
 
 func NewPaddlePosPacket(isRight bool, pos float32) Packet {
-	b, err := json.Marshal(PaddlePosData{
+	b, err := json.Marshal(Paddle{
 		IsRight: isRight,
-		Pos:     pos,
+		PosY:    pos,
 	})
 	// TODO: return error instead of panicking
 	if err != nil {
@@ -136,6 +137,18 @@ func NewBallPacket(ball Ball) Packet {
 
 	return Packet{
 		Type: PacketBall,
+		Data: b,
+	}
+}
+
+func NewStatePacket(state State) Packet {
+	b, err := json.Marshal(state)
+	if err != nil {
+		panic(err)
+	}
+
+	return Packet{
+		Type: PacketGameState,
 		Data: b,
 	}
 }

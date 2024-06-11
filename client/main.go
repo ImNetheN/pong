@@ -10,62 +10,83 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-type Game struct {
+type State struct {
 	LeftPaddle  Paddle
 	RightPaddle Paddle
 	Ball        Ball
+}
 
-	IsRight        bool
-	OtherPaddlePos chan float32
-	ServerConn     net.Conn
+type Game struct {
+	State State
+
+	IsRight bool
+	// OtherPaddlePos chan float32
+	StateChannel chan State
+	ServerConn   net.Conn
 }
 
 func InitGame(isRight bool, conn net.Conn) Game {
 	return Game{
-		LeftPaddle:     InitLeftPaddle(),
-		RightPaddle:    InitRightPaddle(),
-		Ball:           InitBall(),
-		IsRight:        isRight,
-		OtherPaddlePos: make(chan float32),
-		ServerConn:     conn,
+		State: State{
+			LeftPaddle:  InitLeftPaddle(),
+			RightPaddle: InitRightPaddle(),
+			Ball:        InitBall(),
+		},
+		IsRight: isRight,
+		// OtherPaddlePos: make(chan float32),
+		// TODO: check if it needs to be buffered
+		StateChannel: make(chan State, 1),
+		ServerConn:   conn,
+	}
+}
+
+func (g *Game) ControlledPaddle() *Paddle {
+	if g.IsRight {
+		return &g.State.RightPaddle
+	} else {
+		return &g.State.LeftPaddle
+	}
+}
+
+func (g *Game) OtherPaddle() *Paddle {
+	if !g.IsRight {
+		return &g.State.RightPaddle
+	} else {
+		return &g.State.LeftPaddle
 	}
 }
 
 func (g *Game) Update() error {
-	var controlledPaddle *Paddle
-	var otherPaddle *Paddle
-	if g.IsRight {
-		controlledPaddle = &g.RightPaddle
-		otherPaddle = &g.LeftPaddle
-	} else {
-		controlledPaddle = &g.LeftPaddle
-		otherPaddle = &g.RightPaddle
-	}
-
 	for end := false; !end; {
 		select {
-		case posY := <-g.OtherPaddlePos:
-			otherPaddle.posY = posY
+		case newState := <-g.StateChannel:
+			// g.State = newState
+			g.State.Ball = newState.Ball
+			if g.IsRight {
+				g.State.LeftPaddle = newState.LeftPaddle
+			} else {
+				g.State.RightPaddle = newState.RightPaddle
+			}
 		default:
 			end = true
 		}
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyDown) || ebiten.IsKeyPressed(ebiten.KeyS) {
-		controlledPaddle.posY += PADDLE_SPEED
+		g.ControlledPaddle().PosY += PADDLE_SPEED
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyUp) || ebiten.IsKeyPressed(ebiten.KeyW) {
-		controlledPaddle.posY -= PADDLE_SPEED
+		g.ControlledPaddle().PosY -= PADDLE_SPEED
 	}
 
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	g.LeftPaddle.Draw(screen)
-	g.RightPaddle.Draw(screen)
-	g.Ball.Draw(screen)
+	g.State.LeftPaddle.Draw(screen)
+	g.State.RightPaddle.Draw(screen)
+	g.State.Ball.Draw(screen)
 }
 
 func (g *Game) Layout(w, h int) (int, int) {
@@ -73,25 +94,18 @@ func (g *Game) Layout(w, h int) (int, int) {
 }
 
 func (g *Game) SendPaddleInfo() {
-	var paddle *Paddle
-	if g.IsRight {
-		paddle = &g.RightPaddle
-	} else {
-		paddle = &g.LeftPaddle
-	}
-
 	for {
-		paddlePosPacket := NewPaddlePosPacket(g.IsRight, paddle.posY)
+		paddlePosPacket := NewPaddlePosPacket(g.IsRight, g.ControlledPaddle().PosY)
 		_, err := g.ServerConn.Write(SerializePacket(paddlePosPacket))
 
 		if err != nil {
 			panic(err)
 		}
-		time.Sleep(time.Millisecond * 66)
+		time.Sleep(time.Millisecond * 17)
 	}
 }
 
-func (g *Game) ReceivePaddleInfo() {
+func (g *Game) ReceiveStateInfo() {
 	for {
 		buf := make([]byte, 256)
 
@@ -100,14 +114,14 @@ func (g *Game) ReceivePaddleInfo() {
 			panic(err)
 		}
 
-		paddlePosPacket := DeserealizePacket(buf)
-		var paddleData PaddlePosData
-		err = json.Unmarshal(paddlePosPacket.Data, &paddleData)
+		statePacket := DeserealizePacket(buf)
+		var newState State
+		err = json.Unmarshal(statePacket.Data, &newState)
 		if err != nil {
 			panic(err)
 		}
 
-		g.OtherPaddlePos <- paddleData.Pos
+		g.StateChannel <- newState
 	}
 }
 
@@ -125,7 +139,7 @@ func main() {
 	game := InitGame(isRight, serverConnection)
 
 	go game.SendPaddleInfo()
-	go game.ReceivePaddleInfo()
+	go game.ReceiveStateInfo()
 	if err := ebiten.RunGame(&game); err != nil {
 		panic(err)
 	}

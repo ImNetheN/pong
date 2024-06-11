@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net"
 )
 
@@ -28,7 +27,6 @@ func Connect(serverAddressString string) (*net.UDPConn, bool) {
 	}
 
 	playerNumPacket := DeserealizePacket(buf)
-	fmt.Println(string(playerNumPacket.Data))
 	var playerNum int
 	err = json.Unmarshal(playerNumPacket.Data, &playerNum)
 	if err != nil {
