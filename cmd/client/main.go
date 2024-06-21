@@ -82,6 +82,11 @@ func (g *Game) Update() error {
 		g.ControlledPaddle().PosY -= pongs.PADDLE_SPEED
 	}
 
+	if ebiten.IsMouseButtonPressed(ebiten.MouseButton0) {
+		_, mouseY := ebiten.CursorPosition()
+		g.ControlledPaddle().PosY = float32(mouseY)
+	}
+
 	return nil
 }
 
