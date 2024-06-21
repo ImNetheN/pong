@@ -54,8 +54,8 @@ func (m *Manager) UpdateBall() {
 			}
 
 			if ball.PosX < 0 || ball.PosX+pongs.BALL_SIZE > pongs.SCREEN_WIDTH {
-				ball.PosX = 0
-				ball.PosY = 0
+				ball.PosX = 400
+				ball.PosY = 400
 			}
 		}
 	}
