@@ -14,6 +14,9 @@ const (
 	RIGHT_PADDLE_X = 780
 	PADDLE_SPEED   = 5
 
+	SCREEN_HEIGHT = 600
+	SCREEN_WIDTH  = 800
+
 	BALL_SIZE = 10
 )
 
@@ -68,4 +71,26 @@ type State struct {
 	LeftPaddle  Paddle
 	RightPaddle Paddle
 	Ball        Ball
+}
+
+func BallIntersectsLeftPaddle(ball Ball, leftPadl Paddle) bool {
+	if ball.PosX > LEFT_PADDLE_X+PADDLE_WIDTH || ball.PosX+BALL_SIZE < LEFT_PADDLE_X {
+		return false
+	}
+	if ball.PosY > leftPadl.PosY+PADDLE_HEIGHT || ball.PosY+BALL_SIZE < leftPadl.PosY {
+		return false
+	}
+
+	return true
+}
+
+func BallIntersectsRightPaddle(ball Ball, rightPadl Paddle) bool {
+	if ball.PosX > RIGHT_PADDLE_X+PADDLE_WIDTH || ball.PosX+BALL_SIZE < RIGHT_PADDLE_X {
+		return false
+	}
+	if ball.PosY > rightPadl.PosY+PADDLE_HEIGHT || ball.PosY+BALL_SIZE < rightPadl.PosY {
+		return false
+	}
+
+	return true
 }

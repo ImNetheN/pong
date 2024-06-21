@@ -38,8 +38,25 @@ func (m *Manager) UpdateBall() {
 	for {
 		select {
 		case <-updateTicker.C:
-			m.State.Ball.PosX += m.State.Ball.VelX
-			m.State.Ball.PosY += m.State.Ball.VelY
+			ball := &m.State.Ball
+			leftPadl := m.State.LeftPaddle
+			rightPadl := m.State.RightPaddle
+
+			ball.PosX += ball.VelX
+			ball.PosY += ball.VelY
+
+			if ball.PosY+pongs.BALL_SIZE < 0 || ball.PosY > pongs.SCREEN_HEIGHT {
+				ball.VelY *= -1
+			}
+
+			if pongs.BallIntersectsLeftPaddle(*ball, leftPadl) || pongs.BallIntersectsRightPaddle(*ball, rightPadl) {
+				ball.VelX *= -1
+			}
+
+			if ball.PosX < 0 || ball.PosX+pongs.BALL_SIZE > pongs.SCREEN_WIDTH {
+				ball.PosX = 0
+				ball.PosY = 0
+			}
 		}
 	}
 }
@@ -151,8 +168,8 @@ func main() {
 			Ball: pongs.Ball{
 				PosX: 400,
 				PosY: 400,
-				VelX: 1,
-				VelY: 1,
+				VelX: 3,
+				VelY: 3,
 			},
 		},
 	}
